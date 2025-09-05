@@ -133,7 +133,11 @@ venv.bak/
 # Enterprise additions
 models/
 logs/
-cache/
+cache/*.pkl
+cache/*.json
+# Allow cache source code
+!cache/*.py
+
 ssl/
 postgres_data/
 redis_data/
