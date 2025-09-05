@@ -1,33 +1,38 @@
-import nltk
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
+import random
 
 class SentimentAgent:
     """
-    Sentiment Agent: Analyzes news and social media to assess market sentiment.
-    This agent uses NLTK's VADER (Valence Aware Dictionary and sEntiment Reasoner),
-    which is a pre-trained model tuned for social media text.
-    It's a good starting point before building a custom transformer-based model.
+    Sentiment Agent: Analyzes news sentiment using basic keyword analysis
     """
+
     def __init__(self):
-        try:
-            self.analyzer = SentimentIntensityAnalyzer()
-        except LookupError:
-            print("Downloading NLTK VADER lexicon...")
-            nltk.download('vader_lexicon')
-            self.analyzer = SentimentIntensityAnalyzer()
+        self.positive_words = [
+            'growth', 'profit', 'increase', 'strong', 'upgrade', 'bullish',
+            'positive', 'gain', 'rise', 'beat', 'outperform', 'surge',
+            'rally', 'boom', 'breakthrough', 'success', 'expansion'
+        ]
 
-    def analyze_sentiment(self, text):
-        """
-        Analyzes a piece of text (e.g., a news headline) and returns its sentiment.
-        """
-        # Get polarity scores
-        scores = self.analyzer.polarity_scores(text)
+        self.negative_words = [
+            'loss', 'decline', 'decrease', 'weak', 'downgrade', 'bearish',
+            'negative', 'drop', 'fall', 'miss', 'underperform', 'crash',
+            'plunge', 'recession', 'concern', 'warning', 'layoff'
+        ]
 
-        # Classify based on the compound score
-        compound_score = scores['compound']
-        if compound_score >= 0.05:
+    def analyze_sentiment(self, news_text: str) -> str:
+        """
+        Analyzes sentiment of news text using keyword matching
+        """
+        if not news_text:
+            return "Neutral"
+
+        news_lower = news_text.lower()
+
+        positive_count = sum(1 for word in self.positive_words if word in news_lower)
+        negative_count = sum(1 for word in self.negative_words if word in news_lower)
+
+        if positive_count > negative_count:
             return "Positive"
-        elif compound_score <= -0.05:
+        elif negative_count > positive_count:
             return "Negative"
         else:
             return "Neutral"

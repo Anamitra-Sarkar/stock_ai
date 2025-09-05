@@ -1,6 +1,7 @@
 import asyncio
 import time
 import aiohttp
+import requests
 
 class DataAgent:
     """
@@ -89,3 +90,26 @@ class DataAgent:
         self._cache[ticker]['timestamp'] = time.time()
 
         return news_data
+
+    # Synchronous methods for fallback
+    def get_current_stock_data_sync(self, ticker):
+        """Synchronous version for fallback"""
+        try:
+            params = {
+                "function": "GLOBAL_QUOTE",
+                "symbol": ticker,
+                "apikey": self.api_key
+            }
+            response = requests.get(self.base_url, params=params, timeout=10)
+            data = response.json()
+
+            if 'Global Quote' in data and data['Global Quote']:
+                quote = data['Global Quote']
+                return {
+                    'name': ticker,
+                    'price': float(quote.get('05. price', 0))
+                }
+            return None
+        except Exception as e:
+            print(f"Error fetching sync data for {ticker}: {e}")
+            return None

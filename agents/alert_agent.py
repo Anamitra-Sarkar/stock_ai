@@ -1,38 +1,40 @@
-import random
-
 class AlertAgent:
     """
-    Alert Agent: Monitors market conditions and notifies users of risks/opportunities.
-    This agent checks for predefined conditions in the data stream.
+    Alert Agent: Generates alerts based on stock analysis
     """
-    def check_for_alerts(self, stock_analysis):
+
+    def check_for_alerts(self, stock_analysis: dict) -> list:
         """
-        Checks a single stock's analysis for alert-worthy conditions.
+        Checks for various alert conditions based on stock analysis
         """
         alerts = []
         ticker = stock_analysis['ticker']
-        confidence = stock_analysis['prediction']['confidence']
+        price = stock_analysis['price']
+        prediction = stock_analysis['prediction']
         sentiment = stock_analysis['sentiment']
 
-        # Rule 1: High-confidence opportunity
-        if confidence > 92 and sentiment == "Positive":
+        # High confidence prediction alert
+        if prediction['confidence'] > 90:
             alerts.append({
-                "type": "opportunity",
-                "message": f"{ticker} shows strong buy signals. Prediction confidence is at {confidence}% with positive news."
+                'type': 'high_confidence',
+                'ticker': ticker,
+                'message': f"High confidence ({prediction['confidence']}%) prediction for {ticker}: {prediction['trend']} trend expected"
             })
 
-        # Rule 2: High-risk situation
-        if sentiment == "Negative":
+        # Sentiment mismatch alert
+        if sentiment == 'Negative' and prediction['trend'] == 'up':
             alerts.append({
-                "type": "risk",
-                "message": f"Sentiment for {ticker} has turned negative due to recent news. Monitor your positions closely."
+                'type': 'sentiment_mismatch',
+                'ticker': ticker,
+                'message': f"Warning: Negative sentiment but upward trend predicted for {ticker}"
             })
 
-        # Rule 3: Significant price movement (simulated)
-        if random.random() < 0.1: # Simulate a 10% chance of a major price event
-             alerts.append({
-                "type": "price",
-                "message": f"{ticker} just broke a key technical resistance/support level. Increased volatility expected."
+        # Strong buy signal
+        if sentiment == 'Positive' and prediction['trend'] == 'up' and prediction['confidence'] > 85:
+            alerts.append({
+                'type': 'buy_signal',
+                'ticker': ticker,
+                'message': f"Strong buy signal for {ticker}: Positive sentiment + high confidence upward trend"
             })
 
         return alerts
