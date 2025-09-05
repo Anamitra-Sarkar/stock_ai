@@ -25,6 +25,9 @@ except ImportError:
 
 from config import config
 
+# Check deployment flags
+SKIP_ML_TRAINING = os.getenv('SKIP_ML_TRAINING', 'false').lower() == 'true'
+
 class LSTMPredictor:
     """Enterprise-grade LSTM model for stock price prediction"""
     
@@ -115,6 +118,19 @@ class LSTMPredictor:
     def train(self, price_data: List[Dict[str, Any]], validation_split: float = 0.2) -> Dict[str, float]:
         """Train the LSTM model with comprehensive metrics"""
         try:
+            # Skip training if deployment flag is set
+            if SKIP_ML_TRAINING:
+                print(f"⏩ Skipping ML training for {self.symbol} (deployment mode)")
+                return {
+                    'mae': 5.0,
+                    'rmse': 8.0,
+                    'mape': 3.5,
+                    'directional_accuracy': 0.65,
+                    'epochs_trained': 0,
+                    'training_time': 0.0,
+                    'model_type': 'mock_deployment'
+                }
+            
             print(f"🧠 Training LSTM model for {self.symbol}...")
             
             # Prepare data

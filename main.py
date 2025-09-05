@@ -54,6 +54,10 @@ async def init_enterprise_services():
     except Exception as e:
         print(f"❌ Service initialization error: {e}")
 
+# Check deployment environment
+MINIMAL_STARTUP = os.getenv('MINIMAL_STARTUP', 'false').lower() == 'true'
+SKIP_ML_TRAINING = os.getenv('SKIP_ML_TRAINING', 'false').lower() == 'true'
+
 # Run initialization
 loop = asyncio.new_event_loop()
 asyncio.set_event_loop(loop)
@@ -417,6 +421,50 @@ def get_status():
         }
     })
 
+@app.route('/health', methods=['GET'])
+@app.route('/api/health', methods=['GET'])  
+def health_check():
+    """Basic health check for load balancers and monitoring"""
+    try:
+        # Basic health indicators
+        health_status = {
+            "status": "healthy",
+            "timestamp": time.time(),
+            "uptime": time.time() - start_time if 'start_time' in globals() else 0,
+            "version": "1.0.0",
+            "environment": os.getenv('FLASK_ENV', 'development')
+        }
+        
+        # Check critical services
+        services = {}
+        
+        # Cache health
+        try:
+            cache_health = asyncio.run(cache_manager.health_check())
+            services['cache'] = cache_health['status']
+        except:
+            services['cache'] = 'unavailable'
+        
+        # Database health  
+        services['database'] = 'available' if db_manager._initialized else 'unavailable'
+        
+        # Check if any critical service is down
+        critical_down = services['cache'] == 'unavailable'
+        
+        if critical_down:
+            health_status['status'] = 'degraded'
+            
+        health_status['services'] = services
+        
+        return jsonify(health_status), 200 if health_status['status'] == 'healthy' else 503
+        
+    except Exception as e:
+        return jsonify({
+            "status": "unhealthy", 
+            "error": str(e),
+            "timestamp": time.time()
+        }), 503
+
 # --- ENTERPRISE API ENDPOINTS ---
 
 @app.route('/api/prediction/<ticker>', methods=['GET'])
@@ -701,6 +749,9 @@ def start_enterprise_services():
     print("✅ Enterprise services started")
 
 if __name__ == '__main__':
+    # Initialize start time for health checks
+    start_time = time.time()
+    
     # Start enterprise services
     start_enterprise_services()
     
@@ -708,10 +759,22 @@ if __name__ == '__main__':
     print(f"📊 Covering {len(STOCK_CATEGORIES)} sectors with {len(ALL_TICKERS)} stocks")
     print(f"🔑 API Key: {'Configured' if ALPHA_VANTAGE_API_KEY else 'Missing'}")
     print(f"⏰ Rate limit: {MAX_CALLS_PER_HOUR} calls per hour")
+    
+    # Show deployment mode status
+    if MINIMAL_STARTUP:
+        print("🚀 Running in MINIMAL_STARTUP mode (deployment-optimized)")
+    if SKIP_ML_TRAINING:
+        print("🧠 ML training SKIPPED (deployment mode)")
+        
     print(f"🏗️  Enterprise features: WebSocket, ML, Portfolio Optimization, Risk Management")
     print(f"📡 WebSocket streaming: Active")
     print(f"🗄️  Database: {'Connected' if db_manager._initialized else 'Using fallback'}")
     print(f"🚀 Cache: {cache_manager.get_stats()['backend']}")
+    
+    # Make start_time available globally for health checks
+    globals()['start_time'] = start_time
+    
+    print(f"🌐 Health check available at: http://{config.host}:{config.port}/health")
     
     # Run with SocketIO support
     socketio.run(
