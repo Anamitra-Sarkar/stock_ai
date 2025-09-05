@@ -121,12 +121,30 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
+.env.production
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Enterprise additions
+models/
+logs/
+cache/
+ssl/
+postgres_data/
+redis_data/
+
+# Machine Learning models
+*.h5
+*.pkl
+*.joblib
+
+# Docker volumes
+docker-compose.override.yml
 
 # Spyder project settings
 .spyderproject
