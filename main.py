@@ -227,7 +227,7 @@ def get_stock_category(ticker):
 def get_mock_stock_data(ticker):
     """Realistic mock data based on actual stock patterns"""
     # Use deterministic hash-based approach instead of random for consistency
-    ticker_hash = int(hashlib.md5(ticker.encode()).hexdigest()[:8], 16)
+    ticker_hash = int(hashlib.md5(ticker.encode(), usedforsecurity=False).hexdigest()[:8], 16)
     
     # Create deterministic but varied values using hash
     def hash_uniform(min_val, max_val, offset=0):

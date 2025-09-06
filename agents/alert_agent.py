@@ -9,7 +9,6 @@ class AlertAgent:
         """
         alerts = []
         ticker = stock_analysis['ticker']
-        price = stock_analysis['price']
         prediction = stock_analysis['prediction']
         sentiment = stock_analysis['sentiment']
 
@@ -18,7 +17,8 @@ class AlertAgent:
             alerts.append({
                 'type': 'high_confidence',
                 'ticker': ticker,
-                'message': f"High confidence ({prediction['confidence']}%) prediction for {ticker}: {prediction['trend']} trend expected"
+                'message': (f"High confidence ({prediction['confidence']}%) prediction for {ticker}: "
+                          f"{prediction['trend']} trend expected")
             })
 
         # Sentiment mismatch alert

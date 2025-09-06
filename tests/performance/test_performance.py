@@ -28,7 +28,7 @@ class TestAPIPerformance:
     def test_status_endpoint_performance(self, server_running):
         """Test status endpoint response time"""
         start_time = time.time()
-        response = requests.get(f"{self.BASE_URL}/api/status")
+        response = requests.get(f"{self.BASE_URL}/api/status", timeout=10)
         end_time = time.time()
         
         assert response.status_code == 200
@@ -38,7 +38,7 @@ class TestAPIPerformance:
     def test_dashboard_endpoint_performance(self, server_running):
         """Test dashboard endpoint performance"""
         start_time = time.time()
-        response = requests.get(f"{self.BASE_URL}/api/dashboard")
+        response = requests.get(f"{self.BASE_URL}/api/dashboard", timeout=10)
         end_time = time.time()
         
         assert response.status_code == 200
@@ -79,7 +79,7 @@ class TestAPIPerformance:
         initial_time = time.time()
         
         for i in range(20):
-            response = requests.get(f"{self.BASE_URL}/api/dashboard")
+            response = requests.get(f"{self.BASE_URL}/api/dashboard", timeout=10)
             assert response.status_code == 200
             
             # Small delay between requests

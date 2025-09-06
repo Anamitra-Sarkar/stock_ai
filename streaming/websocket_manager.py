@@ -32,7 +32,7 @@ class StreamingManager:
     def _deterministic_hash(self, symbol: str, seed: int = 0) -> float:
         """Generate deterministic pseudo-random value using hash"""
         combined = f"{symbol}_{seed}_{int(time.time() // 60)}"  # Change every minute
-        hash_val = int(hashlib.md5(combined.encode()).hexdigest()[:8], 16)
+        hash_val = int(hashlib.md5(combined.encode(), usedforsecurity=False).hexdigest()[:8], 16)
         return hash_val / (2**32 - 1)
     
     def _deterministic_gauss(self, symbol: str, mean: float = 0, sigma: float = 1, seed: int = 0) -> float:
