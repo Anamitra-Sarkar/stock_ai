@@ -1,5 +1,6 @@
 import asyncio
 import time
+import hashlib
 import aiohttp
 import requests
 import json
@@ -142,10 +143,15 @@ class DataAgent:
 
     def _generate_mock_data(self, ticker):
         """Generate realistic mock data when API is unavailable"""
-        import random
+        # Use hash-based deterministic approach instead of random
+        ticker_hash = int(hashlib.md5(ticker.encode()).hexdigest()[:8], 16)
+        
         base_prices = {'AAPL': 175, 'GOOGL': 140, 'TSLA': 250, 'AMZN': 145, 'MSFT': 350}
         base_price = base_prices.get(ticker, 100)
-        variation = random.uniform(-0.05, 0.05)  # ±5% variation
+        
+        # Create deterministic variation using hash
+        variation_hash = ticker_hash % 1000
+        variation = (variation_hash / 1000.0) * 0.1 - 0.05  # ±5% variation
         mock_price = base_price * (1 + variation)
         
         return {

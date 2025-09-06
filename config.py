@@ -2,6 +2,7 @@
 Configuration management for the enterprise fintech platform
 """
 import os
+import secrets
 from dataclasses import dataclass
 from typing import Optional
 
@@ -45,15 +46,21 @@ class AppConfig:
     """Main application configuration"""
     def __init__(self):
         self.debug = os.getenv('DEBUG', 'False').lower() == 'true'
-        self.host = os.getenv('HOST', '0.0.0.0')
+        # Default to localhost for security, but allow override via environment
+        self.host = os.getenv('HOST', '127.0.0.1')  # More secure default
         self.port = int(os.getenv('PORT', 5000))
-        self.secret_key = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
+        # Generate a secure secret key if not provided
+        self.secret_key = os.getenv('SECRET_KEY') or self._generate_secret_key()
         
         # Service configurations
         self.database = DatabaseConfig()
         self.redis = RedisConfig()
         self.api = APIConfig()
         self.ml = MLConfig()
+    
+    def _generate_secret_key(self) -> str:
+        """Generate a secure secret key using cryptographically strong random bytes"""
+        return secrets.token_hex(32)  # 256-bit key
 
 # Global config instance
 config = AppConfig()

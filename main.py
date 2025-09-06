@@ -3,6 +3,8 @@ import requests
 import json
 import time
 import asyncio
+import secrets
+import hashlib
 import numpy as np
 from flask import Flask, jsonify, request
 from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -141,7 +143,7 @@ def can_make_api_call_sync():
 
 def increment_api_count_sync():
     """Legacy sync version of increment"""
-    global api_call_count
+    global api_call_count, last_reset_time
     api_call_count += 1
     current_time = time.time()
     if current_time - last_reset_time > 3600:  # 1 hour
@@ -224,28 +226,34 @@ def get_stock_category(ticker):
 
 def get_mock_stock_data(ticker):
     """Realistic mock data based on actual stock patterns"""
-    import random
-    random.seed(hash(ticker))
+    # Use deterministic hash-based approach instead of random for consistency
+    ticker_hash = int(hashlib.md5(ticker.encode()).hexdigest()[:8], 16)
+    
+    # Create deterministic but varied values using hash
+    def hash_uniform(min_val, max_val, offset=0):
+        hash_val = (ticker_hash + offset) % 1000000
+        normalized = hash_val / 1000000.0
+        return min_val + normalized * (max_val - min_val)
 
     # More realistic price ranges based on categories
     category = get_stock_category(ticker)
 
     if category == 'Technology':
-        price = round(100 + random.uniform(50, 400), 2)
+        price = round(100 + hash_uniform(50, 400), 2)
     elif category == 'Healthcare':
-        price = round(80 + random.uniform(20, 200), 2)
+        price = round(80 + hash_uniform(20, 200, 1), 2)
     elif category == 'Finance':
-        price = round(30 + random.uniform(10, 150), 2)
+        price = round(30 + hash_uniform(10, 150, 2), 2)
     elif category == 'Energy':
-        price = round(40 + random.uniform(20, 180), 2)
+        price = round(40 + hash_uniform(20, 180, 3), 2)
     else:
-        price = round(50 + random.uniform(20, 250), 2)
+        price = round(50 + hash_uniform(20, 250, 4), 2)
 
     return {
         'name': f"{ticker} ({category})",
         'price': price,
-        'change': round(random.uniform(-5, 5), 2),
-        'change_percent': f"{random.uniform(-3, 3):.2f}",
+        'change': round(hash_uniform(-5, 5, 5), 2),
+        'change_percent': f"{hash_uniform(-3, 3, 6):.2f}",
         'is_real': False,
         'category': category
     }

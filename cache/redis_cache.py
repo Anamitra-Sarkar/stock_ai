@@ -94,3 +94,30 @@ class CacheManager:
         
         for key in keys_to_delete:
             del self.memory_cache[key]
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get cache statistics"""
+        return {
+            'backend': 'Redis' if self.redis_client else 'Memory',
+            'memory_cache_size': len(self.memory_cache)
+        }
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """Check cache health"""
+        status = {'status': 'healthy'}
+        if self.redis_client:
+            try:
+                self.redis_client.ping()
+                status['redis'] = 'connected'
+            except:
+                status['redis'] = 'disconnected'
+        status['memory_cache'] = f"{len(self.memory_cache)} items"
+        return status
+    
+    def get_technical_indicators(self, ticker: str, timeframe: str) -> Optional[Dict]:
+        """Get cached technical indicators (stub for compatibility)"""
+        return None
+
+
+# Global cache manager instance
+cache_manager = CacheManager()

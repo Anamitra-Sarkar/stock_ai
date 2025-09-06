@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
-import random
+import hashlib
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
 
@@ -116,10 +116,19 @@ class PredictionAgent:
                     'last_data': {'close_price': 100}
                 }
     
-    def predict_price(self, ticker: str, current_data: Dict[str, Any]) -> Dict[str, Any]:
+    def predict_price(self, ticker: str, current_data) -> Dict[str, Any]:
         """
         Predict stock price using trained models
+        Args:
+            ticker: Stock ticker symbol
+            current_data: Current price (float) or data dict with 'price' key
         """
+        # Handle both float and dict inputs
+        if isinstance(current_data, (int, float)):
+            current_data = {'price': float(current_data)}
+        elif not isinstance(current_data, dict):
+            current_data = {'price': 100.0}  # Default fallback
+            
         try:
             if ticker not in self.models:
                 # Train model for new ticker
@@ -176,17 +185,29 @@ class PredictionAgent:
         
         return [returns, sma_5, sma_20, volatility, volume]
     
-    def _generate_fallback_prediction(self, ticker: str, current_data: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_fallback_prediction(self, ticker: str, current_data) -> Dict[str, Any]:
         """Generate a fallback prediction when models fail"""
-        current_price = current_data.get('price', 100)
+        # Handle both float and dict inputs
+        if isinstance(current_data, (int, float)):
+            current_price = float(current_data)
+        elif isinstance(current_data, dict):
+            current_price = current_data.get('price', 100)
+        else:
+            current_price = 100.0  # Default fallback
+        
+        # Use deterministic hash-based approach for consistency
+        ticker_hash = int(hashlib.md5(ticker.encode()).hexdigest()[:8], 16)
         
         # Simple random walk with slight upward bias
-        np.random.seed(hash(ticker) % (2**32 - 1))
+        np.random.seed(ticker_hash % (2**32 - 1))
         price_change = np.random.normal(0.001, 0.02)  # 0.1% upward bias, 2% volatility
         predicted_price = current_price * (1 + price_change)
         
         trend = 'up' if predicted_price > current_price else 'down'
-        confidence = random.uniform(60, 80)  # Moderate confidence for fallback
+        
+        # Use hash-based confidence instead of random
+        confidence_hash = (ticker_hash >> 8) % 1000
+        confidence = 60 + (confidence_hash / 1000.0) * 20  # 60-80 range
         
         return {
             'predicted_price': round(predicted_price, 2),

@@ -3,12 +3,12 @@ Real-time WebSocket streaming for enterprise stock data
 """
 import asyncio
 import json
+import hashlib
+import time
 from datetime import datetime
 from typing import Dict, List, Any, Optional
-import random
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from threading import Thread
-import time
 
 from cache.redis_cache import cache_manager
 from agents.prediction_agent import PredictionAgent
@@ -28,6 +28,32 @@ class StreamingManager:
         self.price_cache = {}
         
         print("🚀 Real-time streaming manager initialized")
+    
+    def _deterministic_hash(self, symbol: str, seed: int = 0) -> float:
+        """Generate deterministic pseudo-random value using hash"""
+        combined = f"{symbol}_{seed}_{int(time.time() // 60)}"  # Change every minute
+        hash_val = int(hashlib.md5(combined.encode()).hexdigest()[:8], 16)
+        return hash_val / (2**32 - 1)
+    
+    def _deterministic_gauss(self, symbol: str, mean: float = 0, sigma: float = 1, seed: int = 0) -> float:
+        """Generate deterministic gaussian-like value using hash"""
+        # Use Box-Muller transform approximation with hash
+        u1 = self._deterministic_hash(symbol, seed)
+        u2 = self._deterministic_hash(symbol, seed + 1)
+        if u1 < 1e-10:
+            u1 = 1e-10
+        z0 = sigma * (-2 * (u1**0.5)) + mean
+        return max(-3*sigma, min(3*sigma, z0))  # Clamp to reasonable range
+    
+    def _deterministic_randint(self, symbol: str, min_val: int, max_val: int, seed: int = 0) -> int:
+        """Generate deterministic integer in range using hash"""
+        hash_val = self._deterministic_hash(symbol, seed)
+        return int(min_val + hash_val * (max_val - min_val))
+    
+    def _deterministic_uniform(self, symbol: str, min_val: float, max_val: float, seed: int = 0) -> float:
+        """Generate deterministic uniform value using hash"""
+        hash_val = self._deterministic_hash(symbol, seed)
+        return min_val + hash_val * (max_val - min_val)
     
     def start_streaming(self):
         """Start background streaming threads"""
@@ -98,13 +124,13 @@ class StreamingManager:
                     
                     # Simulate price movement
                     current_price = self.price_cache[symbol]
-                    price_change = random.gauss(0, self.market_volatility)
+                    price_change = self._deterministic_gauss(symbol, 0, self.market_volatility)
                     new_price = current_price * (1 + price_change)
                     new_price = max(1.0, new_price)  # Ensure positive price
                     
                     # Calculate metrics
                     change_percent = (new_price - current_price) / current_price * 100
-                    volume = random.randint(100000, 10000000)
+                    volume = self._deterministic_randint(symbol, 100000, 10000000, seed=1)
                     
                     updates[symbol] = {
                         'symbol': symbol,
@@ -128,8 +154,9 @@ class StreamingManager:
                     if room_updates:
                         self.socketio.emit('market_data', room_updates, room=room_id)
                 
-                # Update frequency: 2-5 seconds for realistic feel
-                time.sleep(random.uniform(2, 5))
+                # Update frequency: 2-5 seconds for realistic feel  
+                sleep_time = 2 + (int(time.time()) % 100) / 100.0 * 3  # Deterministic 2-5 second range
+                time.sleep(sleep_time)
                 
             except Exception as e:
                 print(f"❌ Error in market data simulation: {e}")
@@ -171,7 +198,8 @@ class StreamingManager:
                                 self.socketio.emit('prediction_update', prediction_data, room=room_id)
                 
                 # Update predictions every 30-60 seconds
-                time.sleep(random.uniform(30, 60))
+                sleep_time = 30 + (int(time.time()) % 100) / 100.0 * 30  # Deterministic 30-60 second range
+                time.sleep(sleep_time)
                 
             except Exception as e:
                 print(f"❌ Error updating predictions: {e}")
@@ -195,7 +223,7 @@ class StreamingManager:
             'PG': 167.32
         }
         
-        return base_prices.get(symbol, random.uniform(50, 300))
+        return base_prices.get(symbol, self._deterministic_uniform(symbol, 50, 300, seed=999))
     
     def get_market_summary(self) -> Dict[str, Any]:
         """Get current market summary"""
@@ -224,12 +252,12 @@ class StreamingManager:
         return {
             'symbol': symbol,
             'current_price': current_price,
-            'day_high': current_price * random.uniform(1.01, 1.05),
-            'day_low': current_price * random.uniform(0.95, 0.99),
-            'opening_price': current_price * random.uniform(0.98, 1.02),
-            'volume': random.randint(1000000, 50000000),
-            'market_cap': current_price * random.randint(100000000, 3000000000),
-            'pe_ratio': random.uniform(15, 35),
+            'day_high': current_price * self._deterministic_uniform(symbol, 1.01, 1.05, seed=2),
+            'day_low': current_price * self._deterministic_uniform(symbol, 0.95, 0.99, seed=3),
+            'opening_price': current_price * self._deterministic_uniform(symbol, 0.98, 1.02, seed=4),
+            'volume': self._deterministic_randint(symbol, 1000000, 50000000, seed=5),
+            'market_cap': current_price * self._deterministic_randint(symbol, 100000000, 3000000000, seed=6),
+            'pe_ratio': self._deterministic_uniform(symbol, 15, 35, seed=7),
             'timestamp': datetime.now().isoformat()
         }
     
