@@ -1,6 +1,6 @@
-"""
-Cache module for the enterprise stock platform
-"""
-from .redis_cache import cache_manager
+"""Cache management package"""
+from .redis_cache import CacheManager
 
-__all__ = ['cache_manager']
+cache_manager = CacheManager()
+
+__all__ = ['cache_manager', 'CacheManager']
