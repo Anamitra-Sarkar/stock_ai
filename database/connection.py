@@ -35,7 +35,8 @@ class DatabaseManager:
             print("✅ Database initialized successfully")
         except Exception as e:
             print(f"❌ Database initialization failed: {e}")
-            raise
+            # Don't raise exception to allow fallback operation
+            self._initialized = False
     
     async def close(self):
         """Close database connections"""
@@ -48,6 +49,9 @@ class DatabaseManager:
         """Get database connection from pool"""
         if not self._initialized:
             await self.initialize()
+        
+        if not self._initialized or not self.pool:
+            raise Exception("Database not available")
         
         async with self.pool.acquire() as connection:
             yield connection
@@ -121,7 +125,7 @@ class DatabaseManager:
                 CREATE TABLE IF NOT EXISTS user_profiles (
                     id SERIAL PRIMARY KEY,
                     username VARCHAR(50) UNIQUE NOT NULL,
-                    email VARCHAR(100),
+                    email VARCHAR(100) UNIQUE,
                     risk_tolerance VARCHAR(20) DEFAULT 'moderate',
                     investment_horizon VARCHAR(20) DEFAULT 'medium',
                     initial_capital DECIMAL(15,2) DEFAULT 10000.00,
@@ -135,109 +139,39 @@ class DatabaseManager:
             await conn.execute("""
                 CREATE TABLE IF NOT EXISTS portfolio (
                     id SERIAL PRIMARY KEY,
-                    user_id INTEGER NOT NULL REFERENCES user_profiles(id),
+                    user_id INTEGER REFERENCES user_profiles(id),
                     symbol VARCHAR(10) NOT NULL,
                     shares DECIMAL(15,6) NOT NULL,
                     avg_purchase_price DECIMAL(10,2) NOT NULL,
-                    current_price DECIMAL(10,2) DEFAULT 0.00,
+                    current_price DECIMAL(10,2),
                     purchase_date TIMESTAMP WITH TIME ZONE NOT NULL,
                     last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                     UNIQUE(user_id, symbol)
                 );
             """)
             
-            # Create indexes for better performance
+            # Create indexes
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_stock_data_symbol_timestamp ON stock_data(symbol, timestamp);")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_technical_indicators_symbol_timestamp ON technical_indicators(symbol, timestamp);")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_prediction_history_symbol_date ON prediction_history(symbol, prediction_date);")
-    
-    # Stock Data Operations
-    async def insert_stock_data(self, stock_data: StockData) -> int:
-        """Insert stock data record"""
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_portfolio_user_symbol ON portfolio(user_id, symbol);")
+
+    async def insert_stock_data(self, data: StockData):
+        """Insert stock price data"""
         async with self.get_connection() as conn:
-            result = await conn.fetchval("""
+            await conn.execute("""
                 INSERT INTO stock_data 
                 (symbol, timestamp, timeframe, open_price, high_price, low_price, close_price, volume)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-                ON CONFLICT (symbol, timestamp, timeframe) 
-                DO UPDATE SET 
-                    open_price = EXCLUDED.open_price,
-                    high_price = EXCLUDED.high_price,
-                    low_price = EXCLUDED.low_price,
-                    close_price = EXCLUDED.close_price,
-                    volume = EXCLUDED.volume
-                RETURNING id;
-            """, stock_data.symbol, stock_data.timestamp, stock_data.timeframe.value,
-                stock_data.open_price, stock_data.high_price, stock_data.low_price,
-                stock_data.close_price, stock_data.volume)
-            return result
-    
-    async def get_stock_data(self, symbol: str, timeframe: TimeFrame, limit: int = 100) -> List[StockData]:
-        """Get historical stock data"""
-        async with self.get_connection() as conn:
-            rows = await conn.fetch("""
-                SELECT * FROM stock_data 
-                WHERE symbol = $1 AND timeframe = $2 
-                ORDER BY timestamp DESC 
-                LIMIT $3;
-            """, symbol, timeframe.value, limit)
-            
-            return [StockData(
-                id=row['id'],
-                symbol=row['symbol'],
-                timestamp=row['timestamp'],
-                timeframe=TimeFrame(row['timeframe']),
-                open_price=float(row['open_price']),
-                high_price=float(row['high_price']),
-                low_price=float(row['low_price']),
-                close_price=float(row['close_price']),
-                volume=row['volume'],
-                created_at=row['created_at']
-            ) for row in rows]
-    
-    # Technical Indicators Operations
-    async def insert_technical_indicators(self, indicator: TechnicalIndicator) -> int:
-        """Insert technical indicators"""
-        async with self.get_connection() as conn:
-            result = await conn.fetchval("""
-                INSERT INTO technical_indicators 
-                (symbol, timestamp, timeframe, sma_10, sma_20, sma_50, ema_12, ema_26, 
-                 rsi, macd_line, macd_signal, macd_histogram, bollinger_upper, 
-                 bollinger_middle, bollinger_lower, atr, volume_sma, on_balance_volume)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-                ON CONFLICT (symbol, timestamp, timeframe)
-                DO UPDATE SET 
-                    sma_10 = EXCLUDED.sma_10, sma_20 = EXCLUDED.sma_20, sma_50 = EXCLUDED.sma_50,
-                    ema_12 = EXCLUDED.ema_12, ema_26 = EXCLUDED.ema_26, rsi = EXCLUDED.rsi,
-                    macd_line = EXCLUDED.macd_line, macd_signal = EXCLUDED.macd_signal,
-                    macd_histogram = EXCLUDED.macd_histogram, bollinger_upper = EXCLUDED.bollinger_upper,
-                    bollinger_middle = EXCLUDED.bollinger_middle, bollinger_lower = EXCLUDED.bollinger_lower,
-                    atr = EXCLUDED.atr, volume_sma = EXCLUDED.volume_sma, 
-                    on_balance_volume = EXCLUDED.on_balance_volume
-                RETURNING id;
-            """, indicator.symbol, indicator.timestamp, indicator.timeframe.value,
-                indicator.sma_10, indicator.sma_20, indicator.sma_50, indicator.ema_12,
-                indicator.ema_26, indicator.rsi, indicator.macd_line, indicator.macd_signal,
-                indicator.macd_histogram, indicator.bollinger_upper, indicator.bollinger_middle,
-                indicator.bollinger_lower, indicator.atr, indicator.volume_sma, 
-                indicator.on_balance_volume)
-            return result
-    
-    # Prediction Operations
-    async def insert_prediction(self, prediction: PredictionHistory) -> int:
-        """Insert prediction record"""
-        async with self.get_connection() as conn:
-            result = await conn.fetchval("""
-                INSERT INTO prediction_history 
-                (symbol, model_type, prediction_date, target_date, predicted_price, 
-                 actual_price, confidence_score, features_used, accuracy)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                RETURNING id;
-            """, prediction.symbol, prediction.model_type, prediction.prediction_date,
-                prediction.target_date, prediction.predicted_price, prediction.actual_price,
-                prediction.confidence_score, json.dumps(prediction.features_used),
-                prediction.accuracy)
-            return result
+                ON CONFLICT (symbol, timestamp, timeframe) DO UPDATE SET
+                open_price = EXCLUDED.open_price,
+                high_price = EXCLUDED.high_price,
+                low_price = EXCLUDED.low_price,
+                close_price = EXCLUDED.close_price,
+                volume = EXCLUDED.volume
+            """, data.symbol, data.timestamp, data.timeframe.value, 
+                data.open_price, data.high_price, data.low_price, 
+                data.close_price, data.volume)
 
 # Global database manager instance
 db_manager = DatabaseManager()
