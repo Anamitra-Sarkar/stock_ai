@@ -141,7 +141,8 @@ class TechnicalIndicators:
             # Calculate mean and std from rolling sums
             mean = window_sum / period
             variance = (window_sq_sum / period) - (mean ** 2)
-            std = np.sqrt(max(0, variance))  # Ensure non-negative due to floating point
+            # Floating-point precision errors can cause slightly negative variance; clamp to 0
+            std = np.sqrt(max(0, variance))
             
             middle_band.append(mean)
             upper_band.append(mean + (std * std_dev))
@@ -263,8 +264,8 @@ class TechnicalIndicators:
             
             sma_tp = window_sum / period
             
-            # Calculate Mean Absolute Deviation
-            # Need full window access for MAD, but this is unavoidable
+            # Mean Absolute Deviation requires full window access because each
+            # element's deviation from the mean must be calculated individually
             window = typical_prices[i - period + 1:i + 1]
             mad = np.abs(window - sma_tp).sum() / period
             

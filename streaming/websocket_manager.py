@@ -276,7 +276,7 @@ class StreamingManager:
         """Get streaming statistics"""
         total_clients = sum(len(room['clients']) for room in self.active_subscriptions.values())
         
-        # Efficient set union using itertools.chain
+        # Efficient set union using direct update() instead of creating intermediate lists
         all_symbols = set()
         for room in self.active_subscriptions.values():
             all_symbols.update(room['symbols'])
