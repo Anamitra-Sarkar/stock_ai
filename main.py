@@ -22,6 +22,25 @@ from database.connection import db_manager
 from portfolio.optimizer import PortfolioOptimizer
 from risk.risk_manager import RiskManager
 
+
+def run_async(coro):
+    """Helper function to run async code from sync context efficiently."""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If there's already a running loop, create a new one in a thread
+            import concurrent.futures
+
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                future = pool.submit(asyncio.run, coro)
+                return future.result()
+        else:
+            return loop.run_until_complete(coro)
+    except RuntimeError:
+        # No event loop exists, create one
+        return asyncio.run(coro)
+
+
 # --- INITIALIZE ENTERPRISE APPLICATION ---
 app = Flask(__name__)
 app.config["SECRET_KEY"] = config.secret_key
@@ -279,15 +298,8 @@ def analyze_stock(ticker):
     if not stock_data or stock_data["price"] == 0:
         return None
 
-    # predict_trend is async, so we need to run it properly
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        prediction = loop.run_until_complete(
-            prediction_agent.predict_trend(ticker, stock_data["price"])
-        )
-    finally:
-        loop.close()
+    # predict_trend is async, use helper to run it properly
+    prediction = run_async(prediction_agent.predict_trend(ticker, stock_data["price"]))
 
     # Simple sentiment based on category and price movement
     if stock_data.get("change", 0) > 2:
