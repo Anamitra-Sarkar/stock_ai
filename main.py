@@ -88,10 +88,8 @@ STOCK_CATEGORIES = {
     'Telecom': ['VZ', 'T', 'TMUS', 'CMCSA', 'CHTR', 'DIS', 'NFLX', 'GOOGL']
 }
 
-# Flatten all tickers
-ALL_TICKERS = []
-for category, tickers in STOCK_CATEGORIES.items():
-    ALL_TICKERS.extend(tickers)
+# Flatten all tickers using list comprehension (more efficient)
+ALL_TICKERS = [ticker for tickers in STOCK_CATEGORIES.values() for ticker in tickers]
 
 # Enhanced rate limiting with Redis support
 api_call_count = 0

@@ -40,6 +40,11 @@ class PositionRisk:
 class RiskManager:
     """Enterprise-grade risk management and analysis"""
     
+    # Class-level sets for O(1) lookup (constant-time membership checking)
+    LARGE_CAP_STOCKS = frozenset(['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA'])
+    TECH_STOCKS = frozenset(['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA', 'TSLA'])
+    FINANCE_STOCKS = frozenset(['JPM', 'BAC', 'WFC', 'GS'])
+    
     def __init__(self, risk_free_rate: float = 0.02):
         self.risk_free_rate = risk_free_rate
         self.risk_limits = {
@@ -127,27 +132,29 @@ class RiskManager:
     
     def _prepare_portfolio_data(self, holdings: List[Dict[str, Any]], 
                               price_history: Dict[str, List[float]]) -> pd.DataFrame:
-        """Prepare portfolio data for risk calculations"""
+        """Prepare portfolio data for risk calculations using vectorized operations"""
         try:
-            portfolio_values = []
+            if not price_history:
+                return pd.DataFrame()
             
             # Get minimum length across all price histories
             min_length = min(len(prices) for prices in price_history.values())
             
-            for i in range(min_length):
-                total_value = 0
-                for holding in holdings:
-                    symbol = holding.get('symbol', '')
-                    shares = holding.get('shares', 0)
-                    
-                    if symbol in price_history and i < len(price_history[symbol]):
-                        price = price_history[symbol][i]
-                        total_value += shares * price
-                
-                portfolio_values.append(total_value)
+            # Build symbol to shares mapping for efficient lookup
+            shares_map = {
+                holding.get('symbol', ''): holding.get('shares', 0)
+                for holding in holdings
+            }
+            
+            # Vectorized calculation using numpy arrays
+            portfolio_values = np.zeros(min_length)
+            for symbol, prices in price_history.items():
+                shares = shares_map.get(symbol, 0)
+                if shares > 0:
+                    portfolio_values += shares * np.array(prices[:min_length])
             
             # Create DataFrame
-            dates = pd.date_range(start='2023-01-01', periods=len(portfolio_values), freq='D')
+            dates = pd.date_range(start='2023-01-01', periods=min_length, freq='D')
             return pd.DataFrame({'portfolio_value': portfolio_values}, index=dates)
             
         except Exception as e:
@@ -233,21 +240,17 @@ class RiskManager:
             return "Low"
     
     def _get_liquidity_score(self, symbol: str) -> str:
-        """Simplified liquidity scoring"""
-        large_cap_stocks = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA']
-        if symbol in large_cap_stocks:
+        """Simplified liquidity scoring using O(1) set lookup"""
+        if symbol in self.LARGE_CAP_STOCKS:
             return "High"
         else:
             return "Medium"
     
     def _get_sector_exposure(self, symbol: str) -> str:
-        """Determine sector exposure"""
-        tech_stocks = ['AAPL', 'MSFT', 'GOOGL', 'META', 'NVDA', 'TSLA']
-        finance_stocks = ['JPM', 'BAC', 'WFC', 'GS']
-        
-        if symbol in tech_stocks:
+        """Determine sector exposure using O(1) set lookup"""
+        if symbol in self.TECH_STOCKS:
             return "Technology"
-        elif symbol in finance_stocks:
+        elif symbol in self.FINANCE_STOCKS:
             return "Finance"
         else:
             return "Other"
