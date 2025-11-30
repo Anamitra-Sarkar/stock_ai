@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional
 
 try:
     import redis  # type: ignore
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -31,6 +32,7 @@ class CacheManager:
         if REDIS_AVAILABLE:
             try:
                 from config import config  # type: ignore
+
                 self.redis_client = redis.Redis(
                     host=config.redis.host,
                     port=config.redis.port,
@@ -115,12 +117,16 @@ class CacheManager:
             return True
         return False
 
-    async def cache_stock_data(self, ticker: str, timeframe: str, data: Dict[str, Any], ttl: int = 300) -> bool:
+    async def cache_stock_data(
+        self, ticker: str, timeframe: str, data: Dict[str, Any], ttl: int = 300
+    ) -> bool:
         """Helper to cache stock data by ticker and timeframe"""
         key = f"stock:{ticker}:{timeframe}"
         return await self.set(key, data, ttl)
 
-    async def get_stock_data(self, ticker: str, timeframe: str) -> Optional[Dict[str, Any]]:
+    async def get_stock_data(
+        self, ticker: str, timeframe: str
+    ) -> Optional[Dict[str, Any]]:
         """Helper to retrieve stock data by ticker and timeframe"""
         key = f"stock:{ticker}:{timeframe}"
         value = await self.get(key)
@@ -133,7 +139,8 @@ class CacheManager:
         current_time = time.time()
         # Use list comprehension for efficient key collection
         keys_to_delete = [
-            key for key, item in self.memory_cache.items()
+            key
+            for key, item in self.memory_cache.items()
             if current_time - item["timestamp"] > item.get("ttl", self.cache_ttl)
         ]
         for key in keys_to_delete:
@@ -169,7 +176,9 @@ class CacheManager:
         status["memory_cache"] = f"{len(self.memory_cache)} items"
         return status
 
-    def get_technical_indicators(self, ticker: str, timeframe: str) -> Optional[Dict[str, Any]]:
+    def get_technical_indicators(
+        self, ticker: str, timeframe: str
+    ) -> Optional[Dict[str, Any]]:
         """Get cached technical indicators (stub for compatibility)"""
         return None
 
