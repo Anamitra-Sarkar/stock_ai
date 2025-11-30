@@ -275,7 +275,12 @@ class StreamingManager:
     def get_subscription_stats(self) -> Dict[str, Any]:
         """Get streaming statistics"""
         total_clients = sum(len(room['clients']) for room in self.active_subscriptions.values())
-        total_symbols = len(set().union(*[room['symbols'] for room in self.active_subscriptions.values()]))
+        
+        # Efficient set union using direct update() instead of creating intermediate lists
+        all_symbols = set()
+        for room in self.active_subscriptions.values():
+            all_symbols.update(room['symbols'])
+        total_symbols = len(all_symbols)
         
         return {
             'total_clients': total_clients,

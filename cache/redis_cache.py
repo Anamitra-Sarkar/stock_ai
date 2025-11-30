@@ -131,10 +131,11 @@ class CacheManager:
     def _cleanup_memory_cache(self):
         """Clean up expired entries from memory cache"""
         current_time = time.time()
-        keys_to_delete = []
-        for key, item in self.memory_cache.items():
-            if current_time - item["timestamp"] > item.get("ttl", self.cache_ttl):
-                keys_to_delete.append(key)
+        # Use list comprehension for efficient key collection
+        keys_to_delete = [
+            key for key, item in self.memory_cache.items()
+            if current_time - item["timestamp"] > item.get("ttl", self.cache_ttl)
+        ]
         for key in keys_to_delete:
             del self.memory_cache[key]
 

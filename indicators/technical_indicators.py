@@ -19,14 +19,17 @@ class TechnicalIndicators:
     
     @staticmethod
     def sma(prices: List[float], period: int) -> List[float]:
-        """Simple Moving Average"""
+        """Simple Moving Average using efficient rolling window"""
         if len(prices) < period:
             return []
         
-        sma_values = []
-        for i in range(period - 1, len(prices)):
-            sma_val = sum(prices[i - period + 1:i + 1]) / period
-            sma_values.append(sma_val)
+        # Use rolling sum for O(n) complexity instead of O(n*period)
+        window_sum = sum(prices[:period])
+        sma_values = [window_sum / period]
+        
+        for i in range(period, len(prices)):
+            window_sum += prices[i] - prices[i - period]
+            sma_values.append(window_sum / period)
         
         return sma_values
     
@@ -109,23 +112,43 @@ class TechnicalIndicators:
     @staticmethod
     def bollinger_bands(prices: List[float], period: int = 20, 
                        std_dev: float = 2) -> Tuple[List[float], List[float], List[float]]:
-        """Bollinger Bands"""
+        """Bollinger Bands using efficient rolling calculations"""
         if len(prices) < period:
             return [], [], []
         
-        sma_values = TechnicalIndicators.sma(prices, period)
+        # Convert to numpy array for efficient calculations
+        prices_arr = np.array(prices)
+        n = len(prices_arr)
+        
+        # Pre-allocate result arrays
         upper_band = []
+        middle_band = []
         lower_band = []
         
-        for i in range(period - 1, len(prices)):
-            window = prices[i - period + 1:i + 1]
-            std = np.std(window)
-            sma_idx = i - period + 1
-            
-            upper_band.append(sma_values[sma_idx] + (std * std_dev))
-            lower_band.append(sma_values[sma_idx] - (std * std_dev))
+        # Calculate initial window stats
+        window = prices_arr[:period]
+        window_sum = window.sum()
+        window_sq_sum = (window ** 2).sum()
         
-        return upper_band, sma_values, lower_band
+        for i in range(period - 1, n):
+            if i > period - 1:
+                # Update rolling sums efficiently
+                old_val = prices_arr[i - period]
+                new_val = prices_arr[i]
+                window_sum += new_val - old_val
+                window_sq_sum += new_val ** 2 - old_val ** 2
+            
+            # Calculate mean and std from rolling sums
+            mean = window_sum / period
+            variance = (window_sq_sum / period) - (mean ** 2)
+            # Floating-point precision errors can cause slightly negative variance; clamp to 0
+            std = np.sqrt(max(0, variance))
+            
+            middle_band.append(mean)
+            upper_band.append(mean + (std * std_dev))
+            lower_band.append(mean - (std * std_dev))
+        
+        return upper_band, middle_band, lower_band
     
     @staticmethod
     def stochastic_oscillator(high: List[float], low: List[float], close: List[float],
@@ -221,21 +244,30 @@ class TechnicalIndicators:
     @staticmethod
     def cci(high: List[float], low: List[float], close: List[float],
            period: int = 20) -> List[float]:
-        """Commodity Channel Index"""
+        """Commodity Channel Index using efficient rolling calculations"""
         if len(close) < period:
             return []
         
-        # Calculate Typical Price
-        typical_prices = [(h + l + c) / 3 for h, l, c in zip(high, low, close)]
+        # Calculate Typical Price using numpy for efficiency
+        typical_prices = np.array([(h + l + c) / 3 for h, l, c in zip(high, low, close)])
         
+        n = len(typical_prices)
         cci_values = []
         
-        for i in range(period - 1, len(typical_prices)):
-            window = typical_prices[i - period + 1:i + 1]
-            sma_tp = sum(window) / period
+        # Use rolling sum for efficient SMA calculation
+        window_sum = typical_prices[:period].sum()
+        
+        for i in range(period - 1, n):
+            if i > period - 1:
+                # Update rolling sum efficiently
+                window_sum += typical_prices[i] - typical_prices[i - period]
             
-            # Mean Absolute Deviation
-            mad = sum(abs(tp - sma_tp) for tp in window) / period
+            sma_tp = window_sum / period
+            
+            # Mean Absolute Deviation requires full window access because each
+            # element's deviation from the mean must be calculated individually
+            window = typical_prices[i - period + 1:i + 1]
+            mad = np.abs(window - sma_tp).sum() / period
             
             if mad == 0:
                 cci_values.append(0)
