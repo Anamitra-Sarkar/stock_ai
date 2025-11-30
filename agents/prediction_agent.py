@@ -18,7 +18,9 @@ class PredictionAgent:
 
     def __init__(self):
         self.models: Dict[str, Any] = {}  # Legacy models for backward compatibility
-        self.lstm_predictors: Dict[str, LSTMPredictor] = {}  # LSTM models for each symbol
+        self.lstm_predictors: Dict[str, LSTMPredictor] = (
+            {}
+        )  # LSTM models for each symbol
         self._prediction_cache: Dict[str, Dict[str, Any]] = {}
         self._train_initial_models()
 
@@ -48,7 +50,9 @@ class PredictionAgent:
         for i, (date, close) in enumerate(zip(dates, prices)):
             high = close * (1 + abs(np.random.normal(0, 0.01)))
             low = close * (1 - abs(np.random.normal(0, 0.01)))
-            open_price = prices[i - 1] * (1 + np.random.normal(0, 0.005)) if i > 0 else close
+            open_price = (
+                prices[i - 1] * (1 + np.random.normal(0, 0.005)) if i > 0 else close
+            )
             volume = int(np.random.lognormal(15, 1))  # Log-normal volume distribution
 
             data.append(
@@ -79,14 +83,18 @@ class PredictionAgent:
                     # Print similar logs to what tests captured
                     train_metric = round(0.8 + 0.2 * np.random.rand(), 3)
                     test_metric = round(0.8 + 0.2 * np.random.rand(), 3)
-                    print(f"✅ Trained model for {ticker} - Train: {train_metric}, Test: {test_metric}")
+                    print(
+                        f"✅ Trained model for {ticker} - Train: {train_metric}, Test: {test_metric}"
+                    )
             except Exception:
                 # Keep going for other tickers
                 continue
 
     def get_model_status(self) -> Dict[str, Any]:
         """Report model status for API and tests."""
-        available = sorted(set(list(self.lstm_predictors.keys()) + list(self.models.keys())))
+        available = sorted(
+            set(list(self.lstm_predictors.keys()) + list(self.models.keys()))
+        )
         return {
             "lstm_models_loaded": len(self.lstm_predictors) > 0,
             "legacy_models_loaded": len(self.models) > 0,
@@ -114,7 +122,9 @@ class PredictionAgent:
             "base_confidence": 55.0,  # base used for composite confidence
         }
 
-    def _calculate_composite_confidence(self, prediction: Dict[str, Any], technical: Dict[str, Any]) -> float:
+    def _calculate_composite_confidence(
+        self, prediction: Dict[str, Any], technical: Dict[str, Any]
+    ) -> float:
         """
         Composite confidence from base (model) and technical signal.
         Clamped to [25, 95] to satisfy test bounds.
@@ -124,7 +134,9 @@ class PredictionAgent:
         combined = 0.6 * base + 0.4 * tech
         return float(min(95.0, max(25.0, combined)))
 
-    async def predict_trend(self, ticker: str, current_price: float, use_cache: bool = False) -> Dict[str, Any]:
+    async def predict_trend(
+        self, ticker: str, current_price: float, use_cache: bool = False
+    ) -> Dict[str, Any]:
         """
         Async prediction entrypoint used by tests and other components.
         Returns: {ticker, trend, confidence, predicted_price}
@@ -139,7 +151,9 @@ class PredictionAgent:
         predictor = self.lstm_predictors.get(ticker)
         if predictor and predictor.trained:
             try:
-                recent_data = self._generate_mock_data(ticker)[-max(15, predictor.sequence_length):]
+                recent_data = self._generate_mock_data(ticker)[
+                    -max(15, predictor.sequence_length) :
+                ]
                 pred = predictor.predict(recent_data)
                 if "prediction" in pred:
                     predicted_price = float(pred["prediction"])
@@ -153,7 +167,9 @@ class PredictionAgent:
             predicted_price = float(fallback["predicted_price"])
             base_confidence = float(fallback.get("base_confidence", 55.0))
 
-        change_pct = ((predicted_price - current_price) / max(1e-9, current_price)) * 100.0
+        change_pct = (
+            (predicted_price - current_price) / max(1e-9, current_price)
+        ) * 100.0
         if change_pct > 0.5:
             trend = "up"
         elif change_pct < -0.5:
@@ -162,7 +178,9 @@ class PredictionAgent:
             trend = "neutral"
 
         technical = {
-            "technical_signal": "BUY" if trend == "up" else "SELL" if trend == "down" else "HOLD",
+            "technical_signal": (
+                "BUY" if trend == "up" else "SELL" if trend == "down" else "HOLD"
+            ),
             "technical_confidence": float(50.0 + min(40.0, abs(change_pct))),
         }
         confidence = self._calculate_composite_confidence(
@@ -181,7 +199,9 @@ class PredictionAgent:
 
         return result
 
-    async def get_multi_timeframe_analysis(self, ticker: str, current_price: float) -> Dict[str, Any]:
+    async def get_multi_timeframe_analysis(
+        self, ticker: str, current_price: float
+    ) -> Dict[str, Any]:
         """
         Provide multi-timeframe analysis; for tests, we can reuse the single prediction
         and package it into timeframe buckets.

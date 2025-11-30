@@ -1,4 +1,5 @@
 """ML Models package"""
+
 from .lstm_predictor import LSTMPredictor
 
-__all__ = ['LSTMPredictor']
+__all__ = ["LSTMPredictor"]

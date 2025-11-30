@@ -12,6 +12,7 @@ class DataAgent:
     - Uses asynchronous requests for speed.
     - Implements caching to respect API limits and improve response time.
     """
+
     def __init__(self, api_key):
         self.api_key = api_key
         self.base_url = "https://www.alphavantage.co/query"
@@ -22,7 +23,7 @@ class DataAgent:
         """Checks if the cache for a ticker is still valid."""
         if ticker not in self._cache:
             return False
-        return (time.time() - self._cache[ticker]['timestamp']) < self.CACHE_DURATION
+        return (time.time() - self._cache[ticker]["timestamp"]) < self.CACHE_DURATION
 
     async def _fetch_json(self, session, params):
         """Helper function to perform an async GET request."""
@@ -39,31 +40,27 @@ class DataAgent:
         Asynchronously fetches the latest price data for a given stock ticker.
         Checks cache first.
         """
-        if self._is_cache_valid(ticker) and 'price_data' in self._cache[ticker]:
-            return self._cache[ticker]['price_data']
+        if self._is_cache_valid(ticker) and "price_data" in self._cache[ticker]:
+            return self._cache[ticker]["price_data"]
 
-        params = {
-            "function": "GLOBAL_QUOTE",
-            "symbol": ticker,
-            "apikey": self.api_key
-        }
+        params = {"function": "GLOBAL_QUOTE", "symbol": ticker, "apikey": self.api_key}
         data = await self._fetch_json(session, params)
 
-        if not data or 'Global Quote' not in data or not data['Global Quote']:
+        if not data or "Global Quote" not in data or not data["Global Quote"]:
             print(f"Warning: No stock data received for {ticker}.")
             return None
 
-        quote = data['Global Quote']
+        quote = data["Global Quote"]
         price_data = {
-            'name': ticker,
-            'price': float(quote.get('05. price', 0)),
+            "name": ticker,
+            "price": float(quote.get("05. price", 0)),
         }
 
         # Update cache
         if ticker not in self._cache:
             self._cache[ticker] = {}
-        self._cache[ticker]['price_data'] = price_data
-        self._cache[ticker]['timestamp'] = time.time()
+        self._cache[ticker]["price_data"] = price_data
+        self._cache[ticker]["timestamp"] = time.time()
 
         return price_data
 
@@ -72,27 +69,27 @@ class DataAgent:
         Asynchronously fetches the latest news for a given stock ticker.
         Checks cache first.
         """
-        if self._is_cache_valid(ticker) and 'news_data' in self._cache[ticker]:
-            return self._cache[ticker]['news_data']
+        if self._is_cache_valid(ticker) and "news_data" in self._cache[ticker]:
+            return self._cache[ticker]["news_data"]
 
         params = {
             "function": "NEWS_SENTIMENT",
             "tickers": ticker,
             "limit": "1",
-            "apikey": self.api_key
+            "apikey": self.api_key,
         }
         data = await self._fetch_json(session, params)
 
-        if not data or 'feed' not in data or not data['feed']:
+        if not data or "feed" not in data or not data["feed"]:
             news_data = "No recent news available."
         else:
-            news_data = data['feed'][0].get('title', "No title available.")
+            news_data = data["feed"][0].get("title", "No title available.")
 
         # Update cache
         if ticker not in self._cache:
             self._cache[ticker] = {}
-        self._cache[ticker]['news_data'] = news_data
-        self._cache[ticker]['timestamp'] = time.time()
+        self._cache[ticker]["news_data"] = news_data
+        self._cache[ticker]["timestamp"] = time.time()
 
         return news_data
 
@@ -103,20 +100,17 @@ class DataAgent:
             params = {
                 "function": "GLOBAL_QUOTE",
                 "symbol": ticker,
-                "apikey": self.api_key
+                "apikey": self.api_key,
             }
             response = requests.get(self.base_url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
 
-            if 'Global Quote' not in data or not data['Global Quote']:
+            if "Global Quote" not in data or not data["Global Quote"]:
                 return self._generate_mock_data(ticker)
 
-            quote = data['Global Quote']
-            return {
-                'name': ticker,
-                'price': float(quote.get('05. price', 100))
-            }
+            quote = data["Global Quote"]
+            return {"name": ticker, "price": float(quote.get("05. price", 100))}
         except Exception as e:
             print(f"Error fetching sync data for {ticker}: {e}")
             return self._generate_mock_data(ticker)
@@ -128,16 +122,18 @@ class DataAgent:
                 "function": "NEWS_SENTIMENT",
                 "tickers": ticker,
                 "limit": "1",
-                "apikey": self.api_key
+                "apikey": self.api_key,
             }
             response = requests.get(self.base_url, params=params, timeout=10)
             response.raise_for_status()
             data = response.json()
 
-            if 'feed' not in data or not data['feed']:
+            if "feed" not in data or not data["feed"]:
                 return f"Market analysis suggests {ticker} showing steady performance indicators."
 
-            return data['feed'][0].get('title', f"Recent developments in {ticker} market position.")
+            return data["feed"][0].get(
+                "title", f"Recent developments in {ticker} market position."
+            )
         except Exception as e:
             print(f"Error fetching news for {ticker}: {e}")
             return f"Technical analysis indicates {ticker} maintaining current market trends."
@@ -145,9 +141,11 @@ class DataAgent:
     def _generate_mock_data(self, ticker):
         """Generate realistic mock data when API is unavailable"""
         # Use hash-based deterministic approach instead of random
-        ticker_hash = int(hashlib.md5(ticker.encode(), usedforsecurity=False).hexdigest()[:8], 16)
+        ticker_hash = int(
+            hashlib.md5(ticker.encode(), usedforsecurity=False).hexdigest()[:8], 16
+        )
 
-        base_prices = {'AAPL': 175, 'GOOGL': 140, 'TSLA': 250, 'AMZN': 145, 'MSFT': 350}
+        base_prices = {"AAPL": 175, "GOOGL": 140, "TSLA": 250, "AMZN": 145, "MSFT": 350}
         base_price = base_prices.get(ticker, 100)
 
         # Create deterministic variation using hash
@@ -155,7 +153,4 @@ class DataAgent:
         variation = (variation_hash / 1000.0) * 0.1 - 0.05  # ±5% variation
         mock_price = base_price * (1 + variation)
 
-        return {
-            'name': ticker,
-            'price': round(mock_price, 2)
-        }
+        return {"name": ticker, "price": round(mock_price, 2)}

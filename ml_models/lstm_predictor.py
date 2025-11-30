@@ -1,4 +1,5 @@
 """LSTM Predictor with fallback to LinearRegression"""
+
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
@@ -39,7 +40,11 @@ class LSTMPredictor:
             self.fallback_model.fit(X, y)
             self.trained = True
 
-            return {"status": "trained", "model_type": "LinearRegression_Fallback", "data_points": len(df)}
+            return {
+                "status": "trained",
+                "model_type": "LinearRegression_Fallback",
+                "data_points": len(df),
+            }
 
         except Exception as e:
             return {"error": str(e)}

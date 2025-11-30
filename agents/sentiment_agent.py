@@ -1,5 +1,6 @@
 import random
 
+
 class SentimentAgent:
     """
     Sentiment Agent: Analyzes news sentiment using basic keyword analysis
@@ -7,15 +8,43 @@ class SentimentAgent:
 
     def __init__(self):
         self.positive_words = [
-            'growth', 'profit', 'increase', 'strong', 'upgrade', 'bullish',
-            'positive', 'gain', 'rise', 'beat', 'outperform', 'surge',
-            'rally', 'boom', 'breakthrough', 'success', 'expansion'
+            "growth",
+            "profit",
+            "increase",
+            "strong",
+            "upgrade",
+            "bullish",
+            "positive",
+            "gain",
+            "rise",
+            "beat",
+            "outperform",
+            "surge",
+            "rally",
+            "boom",
+            "breakthrough",
+            "success",
+            "expansion",
         ]
 
         self.negative_words = [
-            'loss', 'decline', 'decrease', 'weak', 'downgrade', 'bearish',
-            'negative', 'drop', 'fall', 'miss', 'underperform', 'crash',
-            'plunge', 'recession', 'concern', 'warning', 'layoff'
+            "loss",
+            "decline",
+            "decrease",
+            "weak",
+            "downgrade",
+            "bearish",
+            "negative",
+            "drop",
+            "fall",
+            "miss",
+            "underperform",
+            "crash",
+            "plunge",
+            "recession",
+            "concern",
+            "warning",
+            "layoff",
         ]
 
     def analyze_sentiment(self, news_text: str) -> str:
